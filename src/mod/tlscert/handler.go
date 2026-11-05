@@ -393,8 +393,21 @@ func (m *Manager) HandleSelfSignCertGenerate(w http.ResponseWriter, r *http.Requ
 	priKeyFilename := domainToFilename(cn, ".key")
 	pubKeyFilename := domainToFilename(cn, ".pem")
 
+	//Optional key type selection, defaults to the manager's configured default
+	keyType := m.DefaultKeyType
+	if keyType == "" {
+		keyType = DefaultTlsKeyType
+	}
+	if keyTypeRaw, err := utils.PostPara(r, "keyType"); err == nil {
+		keyType = TlsKeyType(keyTypeRaw)
+		if !keyType.IsValid() {
+			utils.SendErrorResponse(w, "Invalid key type: "+keyTypeRaw)
+			return
+		}
+	}
+
 	// Generate self-signed certificate
-	err = m.GenerateSelfSignedCertificate(cn, SANs, pubKeyFilename, priKeyFilename)
+	err = m.GenerateSelfSignedCertificate(cn, SANs, pubKeyFilename, priKeyFilename, keyType)
 	if err != nil {
 		utils.SendErrorResponse(w, "Failed to generate self-signed certificate: "+err.Error())
 		return

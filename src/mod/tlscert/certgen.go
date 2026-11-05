@@ -1,21 +1,28 @@
 package tlscert
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"os"
 	"time"
 )
 
-// GenerateSelfSignedCertificate generates a self-signed ECDSA certificate and saves it to the specified files.
-func (m *Manager) GenerateSelfSignedCertificate(cn string, sans []string, certFile string, keyFile string) error {
-	// Generate private key (ECDSA P-256)
-	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+// GenerateSelfSignedCertificate generates a self-signed certificate using the
+// given key type and saves it to the specified files.
+func (m *Manager) GenerateSelfSignedCertificate(cn string, sans []string, certFile string, keyFile string, keyType TlsKeyType) error {
+	if keyType == "" {
+		keyType = DefaultTlsKeyType
+	}
+	if !keyType.IsValid() {
+		return fmt.Errorf("unsupported key type %q", string(keyType))
+	}
+
+	// Generate private key matching the requested key type
+	privKey, err := keyType.generatePrivateKey()
 	if err != nil {
 		m.Logger.PrintAndLog("tls-router", "Failed to generate private key", err)
 		return err
@@ -39,7 +46,7 @@ func (m *Manager) GenerateSelfSignedCertificate(cn string, sans []string, certFi
 	}
 
 	// Create self-signed certificate
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privKey.PublicKey, privKey)
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, privKey.Public(), privKey)
 	if err != nil {
 		m.Logger.PrintAndLog("tls-router", "Failed to create certificate", err)
 		return err
@@ -77,16 +84,16 @@ func (m *Manager) GenerateSelfSignedCertificate(cn string, sans []string, certFi
 	}
 
 	// Encode private key to PEM
-	privBytes, err := x509.MarshalECPrivateKey(privKey)
+	keyBlock, err := marshalPrivateKeyPEM(privKey)
 	if err != nil {
-		m.Logger.PrintAndLog("tls-router", "Unable to marshal ECDSA private key", err)
+		m.Logger.PrintAndLog("tls-router", "Unable to marshal private key", err)
 		return err
 	}
-	err = writeFileWithMode(m.CertStore, keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}), defaultPrivateKeyFileMode)
+	err = writeFileWithMode(m.CertStore, keyFile, pem.EncodeToMemory(keyBlock), defaultPrivateKeyFileMode)
 	if err != nil {
 		m.Logger.PrintAndLog("tls-router", "Failed to write private key to file: "+keyFile, err)
 		return err
 	}
-	m.Logger.PrintAndLog("tls-router", "Certificate and key generated: "+certFile+", "+keyFile, nil)
+	m.Logger.PrintAndLog("tls-router", "Certificate and key generated ("+keyType.String()+"): "+certFile+", "+keyFile, nil)
 	return nil
 }
