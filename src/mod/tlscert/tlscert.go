@@ -35,6 +35,10 @@ type Manager struct {
 	Logger       *logger.Logger //System wide logger for debug mesage
 	FallbackCert string        //Name of the fallback/default certificate (no file renaming)
 
+	// DefaultKeyType is the key algorithm and size used for self-signed
+	// certificate generation when the caller does not specify one.
+	DefaultKeyType TlsKeyType
+
 	/* External handlers */
 	hostSpecificTlsBehavior func(serverName string) (*HostSpecificTlsBehavior, error) // Function to get host specific TLS behavior, if nil, use global TLS options
 }
@@ -106,6 +110,7 @@ func NewManager(certStore string, logger *logger.Logger) (*Manager, error) {
 		LoadedCerts:             []*CertCache{},
 		hostSpecificTlsBehavior: defaultHostSpecificTlsBehavior, //Default to no SNI and no auto HTTPS
 		Logger:                  logger,
+		DefaultKeyType:          DefaultTlsKeyType,
 	}
 
 	// Restore fallback cert name from metadata file

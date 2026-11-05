@@ -178,6 +178,20 @@
                             <small>(Intermediate/modern remove legacy CBC ciphers flagged by SSL scanners; modern requires TLS v1.3)</small>
                         </label>
                     </div>
+                    <div style="display: flex; align-items: center; gap: 1em; margin-top: 0.8em;">
+                        <select id="selfSignKeyTypeSelect" class="ui dropdown">
+                            <option value="ecdsa-p256">ECDSA P-256 (default)</option>
+                            <option value="ecdsa-p384">ECDSA P-384</option>
+                            <option value="ecdsa-p521">ECDSA P-521</option>
+                            <option value="rsa-2048">RSA 2048-bit</option>
+                            <option value="rsa-3072">RSA 3072-bit</option>
+                            <option value="rsa-4096">RSA 4096-bit</option>
+                        </select>
+                        <label for="selfSignKeyTypeSelect" style="margin: 0;">
+                            Self-Signed Certificate Key<br>
+                            <small>(Algorithm and key size used when generating self-signed certificates; ECDSA is faster and smaller, RSA has the widest client compatibility)</small>
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Protocols -->

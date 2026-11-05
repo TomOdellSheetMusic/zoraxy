@@ -142,6 +142,15 @@ func startupSequence() {
 		panic(err)
 	}
 
+	//Restore the configured self-signed certificate key type
+	if sysdb.KeyExists("settings", "selfSignKeyType") {
+		keyType := tlscert.DefaultTlsKeyType
+		sysdb.Read("settings", "selfSignKeyType", &keyType)
+		if keyType.IsValid() {
+			tlsCertManager.DefaultKeyType = keyType
+		}
+	}
+
 	//Create a redirection rule table
 	db.NewTable("redirect")
 	redirectAllowRegexp := false

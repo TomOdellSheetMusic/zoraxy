@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"imuslab.com/zoraxy/mod/dynamicproxy"
+	"imuslab.com/zoraxy/mod/tlscert"
 	"imuslab.com/zoraxy/mod/utils"
 )
 
@@ -173,6 +174,44 @@ func handleSetTlsCipherProfile(w http.ResponseWriter, r *http.Request) {
 			utils.SendErrorResponse(w, "failed to apply TLS cipher profile: "+err.Error())
 			return
 		}
+		utils.SendOK(w)
+	default:
+		http.Error(w, "405 - Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// Handle the GET and SET of the key type used for self-signed certificate generation
+func handleSetSelfSignKeyType(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		keyType := tlscert.DefaultTlsKeyType
+		if sysdb.KeyExists("settings", "selfSignKeyType") {
+			sysdb.Read("settings", "selfSignKeyType", &keyType)
+		}
+		if !keyType.IsValid() {
+			keyType = tlscert.DefaultTlsKeyType
+		}
+		js, _ := json.Marshal(keyType)
+		utils.SendJSONResponse(w, string(js))
+	case http.MethodPost:
+		newKeyTypeRaw, err := utils.PostPara(r, "set")
+		if err != nil {
+			utils.SendErrorResponse(w, "invalid key type")
+			return
+		}
+
+		//Validate input: casting an unknown string yields an invalid key type
+		newKeyType := tlscert.TlsKeyType(newKeyTypeRaw)
+		if !newKeyType.IsValid() {
+			utils.SendErrorResponse(w, "invalid key type")
+			return
+		}
+
+		sysdb.Write("settings", "selfSignKeyType", newKeyType)
+		if tlsCertManager != nil {
+			tlsCertManager.DefaultKeyType = newKeyType
+		}
+		SystemWideLogger.PrintAndLog("TLS", "Updating self-signed certificate key type to "+newKeyType.String(), nil)
 		utils.SendOK(w)
 	default:
 		http.Error(w, "405 - Method not allowed", http.StatusMethodNotAllowed)
